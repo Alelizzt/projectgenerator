@@ -64,6 +64,7 @@ class ExportDialog(QDialog, DIALOG_UI):
         self.type_combo_box.clear()
         self.type_combo_box.addItem(self.tr('PostGIS'), 'pg')
         self.type_combo_box.addItem(self.tr('GeoPackage'), 'gpkg')
+        self.type_combo_box.addItem(self.tr('Mssql'), 'mssql')
         self.type_combo_box.currentIndexChanged.connect(self.type_changed)
 
         self.multiple_models_dialog = MultipleModelsDialog(self)
@@ -178,7 +179,9 @@ class ExportDialog(QDialog, DIALOG_UI):
 
             exporter = iliexporter.Exporter()
 
-            tool_name = 'ili2pg' if self.type_combo_box.currentData() == 'pg' else 'ili2gpkg'
+            tool_name_list = {'pg':'ili2pg','gpkg':'ili2gpkg', 'mssql': 'ili2mssql'}
+            tool_name = tool_name_list[self.type_combo_box.currentData()]
+            
             exporter.tool_name = tool_name
             exporter.configuration = configuration
 
@@ -256,6 +259,14 @@ class ExportDialog(QDialog, DIALOG_UI):
             configuration.dbpwd = self.pg_password_line_edit.text()
         elif self.type_combo_box.currentData() == 'gpkg':
             configuration.dbfile = self.gpkg_file_line_edit.text().strip()
+        elif self.type_combo_box.currentData() == 'mssql':
+            configuration.dbhost = self.mssql_host_line_edit.text().strip()
+            configuration.dbinstance = self.mssql_instance_line_edit.text().strip()
+            configuration.dbport = self.mssql_port_line_edit.text().strip()
+            configuration.dbusr = self.mssql_user_line_edit.text().strip()
+            configuration.database = self.mssql_database_line_edit.text().strip()
+            configuration.dbschema = self.mssql_schema_line_edit.text().strip().lower()
+            configuration.dbpwd = self.mssql_password_line_edit.text()
 
         configuration.xtffile = self.xtf_file_line_edit.text().strip()
         configuration.ilimodels = self.ili_models_line_edit.text().strip()
@@ -287,6 +298,19 @@ class ExportDialog(QDialog, DIALOG_UI):
         elif self.type_combo_box.currentData() in ['ili2gpkg', 'gpkg']:
             settings.setValue(
                 'QgsProjectGenerator/ili2gpkg/dbfile', configuration.dbfile)
+        elif self.type_combo_box.currentData() in ['ili2mssql', 'mssql']:
+            settings.setValue(
+                'QgsProjectGenerator/ili2mssql/host', configuration.dbhost)
+            settings.setValue(
+                'QgsProjectGenerator/ili2mssql/instance', configuration.dbinstance)
+            settings.setValue(
+                'QgsProjectGenerator/ili2mssql/port', configuration.dbport)
+            settings.setValue('QgsProjectGenerator/ili2mssql/user', configuration.dbusr)
+            settings.setValue(
+                'QgsProjectGenerator/ili2mssql/database', configuration.database)
+            settings.setValue(
+                'QgsProjectGenerator/ili2mssql/schema', configuration.dbschema)
+            settings.setValue('QgsProjectGenerator/ili2mssql/password', configuration.dbpwd)
 
     def restore_configuration(self):
         settings = QSettings()
@@ -307,10 +331,26 @@ class ExportDialog(QDialog, DIALOG_UI):
             settings.value('QgsProjectGenerator/ili2pg/password'))
         self.gpkg_file_line_edit.setText(
             settings.value('QgsProjectGenerator/ili2gpkg/dbfile'))
+        
+        self.mssql_host_line_edit.setText(settings.value(
+            'QgsProjectGenerator/ili2mssql/host', 'localhost'))
+        self.mssql_instance_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/instance'))
+        self.mssql_port_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/port'))
+        self.mssql_user_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/user'))
+        self.mssql_database_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/database'))
+        self.mssql_schema_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/schema'))
+        self.mssql_password_line_edit.setText(
+            settings.value('QgsProjectGenerator/ili2mssql/password'))
 
         mode = settings.value('QgsProjectGenerator/importtype', 'pg')
         mode = 'pg' if mode == 'ili2pg' else mode
         mode = 'gpkg' if mode == 'ili2gpkg' else mode
+        mode = 'mssql' if mode == 'ili2mssql' else mode
         self.type_combo_box.setCurrentIndex(self.type_combo_box.findData(mode))
         self.type_changed()
 
@@ -326,12 +366,16 @@ class ExportDialog(QDialog, DIALOG_UI):
 
     def type_changed(self):
         self.progress_bar.hide()
+        self.pg_config.hide()
+        self.gpkg_config.hide()
+        self.mssql_config.hide()
+
         if self.type_combo_box.currentData() == 'pg':
             self.pg_config.show()
-            self.gpkg_config.hide()
         elif self.type_combo_box.currentData() == 'gpkg':
-            self.pg_config.hide()
             self.gpkg_config.show()
+        elif self.type_combo_box.currentData() == 'mssql':
+            self.mssql_config.show()
 
     def link_activated(self, link):
         if link.url() == '#configure':

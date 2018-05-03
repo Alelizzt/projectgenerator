@@ -29,6 +29,9 @@ ili2db_tools = {
     },
     'ili2gpkg': {
         'version': '3.11.3'
+    },
+    'ili2mssql': {
+        'version': '0.1.0'
     }
 }
 ili2db_tools['ili2pg'][
@@ -36,8 +39,9 @@ ili2db_tools['ili2pg'][
 ili2db_tools['ili2gpkg'][
     'url'] = 'http://www.eisenhutinformatik.ch/interlis/ili2gpkg/ili2gpkg-{}.zip'.format(
     ili2db_tools['ili2gpkg']['version'])
-
-
+# FIXME download link
+ili2db_tools['ili2mssql'][
+    'url'] = 'http://192.168.98.66/ili2mssql.jar'
 class BaseConfiguration(object):
 
     def __init__(self):
@@ -113,9 +117,11 @@ class Ili2DbCommandConfiguration(object):
         self.tool_name = None
         self.ilifile = ''
         self.ilimodels = ''
+        self.dbinstance = ''
 
     @property
     def uri(self):
+        separator = ' '
         uri = []
         if self.tool_name == 'ili2pg':
             uri += ['dbname={}'.format(self.database)]
@@ -127,12 +133,26 @@ class Ili2DbCommandConfiguration(object):
                 uri += ['port={}'.format(self.dbport)]
         elif self.tool_name == 'ili2gpkg':
             uri = [self.dbfile]
-        return ' '.join(uri)
+        elif self.tool_name == 'ili2mssql':
+            uri += ['DRIVER={SQL Server}']
+            host = self.dbhost
+            if self.dbport:
+                host += ',' + self.dbport
+            if self.dbinstance:
+                host += '\\' + self.dbinstance
+
+            uri += ['SERVER={}'.format(host)]
+            uri += ['DATABASE={}'.format(self.database)]
+            uri += ['UID={}'.format(self.dbusr)]
+            uri += ['PWD={}'.format(self.dbpwd)]
+            separator = ';'
+
+        return separator.join(uri)
 
     def to_ili2db_args(self, hide_password=False):
 
         # Valid ili file, don't pass --modeldir (it can cause ili2db errors)
-        with_modeldir = not self.ilifile
+        with_modeldir = (self.tool_name == 'ili2mssql') or not self.ilifile
 
         args = self.base_configuration.to_ili2db_args(with_modeldir=with_modeldir)
 
@@ -150,6 +170,21 @@ class Ili2DbCommandConfiguration(object):
             args += ["--dbdatabase", self.database]
             args += ["--dbschema",
                      self.dbschema or self.database]
+        elif self.tool_name == 'ili2mssql':
+            args += ["--dbinstance", self.dbinstance]
+            args += ["--dbhost", self.dbhost]
+            if self.dbport:
+                args += ["--dbport", self.dbport]
+            args += ["--dbusr", self.dbusr]
+            if self.dbpwd:
+                if hide_password:
+                    args += ["--dbpwd", '******']
+                else:
+                    args += ["--dbpwd", self.dbpwd]
+            args += ["--dbdatabase", self.database]
+            args += ["--dbschema",
+                     self.dbschema or self.database]
+                     
         elif self.tool_name == 'ili2gpkg':
             args += ["--dbfile", self.dbfile]
 

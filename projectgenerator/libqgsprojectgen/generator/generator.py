@@ -26,7 +26,7 @@ from projectgenerator.libqgsprojectgen.dataobjects import Field
 from projectgenerator.libqgsprojectgen.dataobjects import LegendGroup
 from projectgenerator.libqgsprojectgen.dataobjects.layers import Layer
 from projectgenerator.libqgsprojectgen.dataobjects.relations import Relation
-from ..dbconnector import pg_connector, gpkg_connector
+from ..dbconnector import pg_connector, gpkg_connector, mssql_connector
 from .config import IGNORED_SCHEMAS, IGNORED_TABLES, IGNORED_FIELDNAMES, READONLY_FIELDNAMES
 
 
@@ -42,6 +42,8 @@ class Generator:
             self._db_connector = pg_connector.PGConnector(uri, schema)
         elif self.tool_name == 'ili2gpkg':
             self._db_connector = gpkg_connector.GPKGConnector(uri, None)
+        elif self.tool_name == 'ili2mssql':
+            self._db_connector = mssql_connector.MssqlConnector(uri, schema)
 
     def layers(self, filter_layer_list=[]):
         tables_info = self.get_tables_info()
@@ -77,6 +79,35 @@ class Generator:
                 else:
                     data_source_uri = '{uri} key={primary_key} table="{schema}"."{table}"'.format(
                         uri=self.uri,
+                        primary_key=record['primary_key'],
+                        schema=record['schemaname'],
+                        table=record['tablename']
+                    )
+            elif self.tool_name == 'ili2mssql':
+                provider = 'mssql'
+                param_db = self._uri2dict(self.uri)
+
+                uri1 = 'dbname=\'{database}\' host={server} user=\'{uid}\' password=\'{pwd}\' '.format(
+                    database=param_db['DATABASE'],
+                    server=param_db['SERVER'],
+                    uid=param_db['UID'],
+                    pwd=param_db['PWD']
+                )
+                
+                if record['geometry_column']:
+
+                    data_source_uri = '{uri} estimatedmetadata=true srid={srid} type={type} table="{schema}"."{table}" ({geometry_column}) sql='.format(
+                        uri=uri1,
+                        primary_key=record['primary_key'],
+                        srid=record['srid'],
+                        type=record['type'],
+                        schema=record['schemaname'],
+                        table=record['tablename'],
+                        geometry_column=record['geometry_column']
+                    )
+                else:
+                    data_source_uri = '{uri} estimatedmetadata=true srid=0 table="{schema}"."{table}" sql='.format(
+                        uri=uri1,
                         primary_key=record['primary_key'],
                         schema=record['schemaname'],
                         table=record['tablename']
@@ -167,7 +198,19 @@ class Generator:
             layers.append(layer)
 
         return layers
-
+    
+    # TODO convert to object
+    def _uri2dict(self, uri):
+        lst_item = uri.split(';')
+        res = dict()
+        for item in lst_item:
+            key_value = item.split('=')
+            if len(key_value)==2:
+                key = key_value[0].strip()
+                value = key_value[1].strip()
+                res[key] = value
+        
+        return res
     def relations(self, layers, filter_layer_list=[]):
         relations_info = self.get_relations_info(filter_layer_list)
         layer_map = dict()
