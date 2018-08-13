@@ -302,17 +302,12 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
 # Se crea el extext del proyecto a partir del primer layer que contenga este dato
             for layer in project.layers:
                 if layer.extent is not None:
-                    xMin, yMin, xMax, yMax = layer.extent.split(';')
-                    float(xMin)
-                    float(yMin)
-                    float(xMax)
-                    float(yMax)
-                    #print (layer.extent.split(';'))
-                    print(layer.extent)
-                    rectangle = QgsRectangle(xMin, yMin, xMax, yMax)
+                    extent_values = layer.extent.split(';')
+                    print(extent_values[0], extent_values[1], extent_values[2], extent_values[3] )
+                    rectangle = QgsRectangle(float(extent_values[0]),float(extent_values[1]),float(extent_values[2]),float(extent_values[3]))
                     print(rectangle)
                     self.canvas = self.iface.mapCanvas()
-                    self.canvas.setExtent(rectanle)
+                    self.canvas.setExtent(rectangle)
                     break
 
             self.buttonBox.clear()
