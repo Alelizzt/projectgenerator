@@ -60,7 +60,9 @@ from qgis.PyQt.QtCore import (
 from qgis.core import (
     QgsProject,
     QgsCoordinateReferenceSystem,
-    Qgis
+    Qgis,
+    QgsRectangle,
+    QgsPointXY
 )
 from qgis.gui import (
     QgsMessageBar,
@@ -296,6 +298,22 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
 
             self.print_info(self.tr('Generating QGIS project…'))
             project.create(None, qgis_project)
+#HERE CAN YOU Start!
+# Se crea el extext del proyecto a partir del primer layer que contenga este dato
+            for layer in project.layers:
+                if layer.extent is not None:
+                    xMin, yMin, xMax, yMax = layer.extent.split(';')
+                    float(xMin)
+                    float(yMin)
+                    float(xMax)
+                    float(yMax)
+                    #print (layer.extent.split(';'))
+                    print(layer.extent)
+                    rectangle = QgsRectangle(xMin, yMin, xMax, yMax)
+                    print(rectangle)
+                    self.canvas = self.iface.mapCanvas()
+                    self.canvas.setExtent(rectanle)
+                    break
 
             self.buttonBox.clear()
             self.buttonBox.setEnabled(True)
@@ -355,7 +373,6 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
         configuration.epsg = self.epsg
         configuration.inheritance = self.ili2db_options.inheritance_type()
         configuration.tomlfile = self.ili2db_options.toml_file()
-        configuration.create_basket_col = self.ili2db_options.create_basket_col()
 
         configuration.base_configuration = self.base_configuration
         if self.ili_file_line_edit.text().strip():

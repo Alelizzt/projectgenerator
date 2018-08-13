@@ -75,6 +75,14 @@ class GPKGConnector(DBConnector):
             interlis_fields = """p.setting AS kind_settings,
                 alias.setting AS table_alias,
                 c.iliname AS ili_name,
+                (
+        		SELECT GROUP_CONCAT("setting", ';')
+        		FROM "T_ILI2DB_COLUMN_PROP" AS cprop
+        		WHERE s.name == cprop.tablename
+        		  AND g.column_name == cprop.columnname
+        		  AND cprop."tag" IN ('ch.ehi.ili2db.c1Min', 'ch.ehi.ili2db.c2Min', 'ch.ehi.ili2db.c1Max',  'ch.ehi.ili2db.c2Max')
+        		ORDER BY ROWID
+        		) AS extent,
                 substr(c.iliname, 0, instr(c.iliname, '.')) AS model,"""
             interlis_joins = """LEFT JOIN T_ILI2DB_TABLE_PROP p
                    ON p.tablename = s.name
@@ -83,7 +91,7 @@ class GPKGConnector(DBConnector):
                    ON alias.tablename = s.name
                       AND alias.tag = 'ch.ehi.ili2db.dispName'
                 LEFT JOIN t_ili2db_classname c
-                   ON s.name == c.sqlname """
+                   ON s.name == c.sqlname"""
 
         try:
             cursor.execute("""
@@ -161,7 +169,6 @@ class GPKGConnector(DBConnector):
         columns_info = cursor.fetchall()
 
         columns_prop = list()
-        columns_full_name = list()
 
         if self.metadata_exists():
             cursor.execute("""
@@ -170,14 +177,6 @@ class GPKGConnector(DBConnector):
                 WHERE tablename = '{}'
                 """.format(table_name))
             columns_prop = cursor.fetchall()
-
-        if self.metadata_exists():
-            cursor.execute("""
-                SELECT SqlName, IliName
-                FROM t_ili2db_attrname
-                WHERE owner = '{}'
-                """.format(table_name))
-            columns_full_name = cursor.fetchall()
 
         complete_records = list()
         for column_info in columns_info:
@@ -188,11 +187,6 @@ class GPKGConnector(DBConnector):
             record['unit'] = None
             record['texttype'] = None
             record['column_alias'] = None
-
-            for column_full_name in columns_full_name:
-                if column_full_name['sqlname'] == column_info['name']:
-                    record['fully_qualified_name'] = column_full_name['iliname']
-                    break
 
             for column_prop in columns_prop:
                 if column_prop['columnname'] == column_info['name']:

@@ -24,10 +24,11 @@ from qgis.PyQt.QtCore import QCoreApplication
 
 class Layer(object):
 
-    def __init__(self, provider, uri, name, geometry_column=None, wkb_type=QgsWkbTypes.Unknown, alias=None, is_domain=False, is_nmrel=False, display_expression=None):
+    def __init__(self, provider, uri, name, extent, geometry_column=None, wkb_type=QgsWkbTypes.Unknown, alias=None, is_domain=False, is_nmrel=False, display_expression=None):
         self.provider = provider
         self.uri = uri
         self.name = name
+        self.extent = extent
         self.geometry_column = geometry_column
         self.wkb_type = wkb_type
         self.alias = alias
@@ -46,6 +47,7 @@ class Layer(object):
     def dump(self):
         definition = dict()
         definition['provider'] = self.provider
+        definition['extent'] = self.extent
         definition['uri'] = self.uri
         definition['isdomain'] = self.is_domain
         definition['isnmrel'] = self.is_nmrel
@@ -93,7 +95,7 @@ class Layer(object):
         if has_tabs:
             tab = FormTab(QCoreApplication.translate('FormTab', 'General'), 2)
             for field in self.fields:
-                if not field.hidden:
+                if field.widget != 'Hidden':
                     widget = FormFieldWidget(field.alias, field.name)
                     tab.addChild(widget)
 
@@ -107,7 +109,7 @@ class Layer(object):
                     self.__form.add_element(tab)
         else:
             for field in self.fields:
-                if not field.hidden:
+                if field.widget != 'Hidden':
                     widget = FormFieldWidget(field.alias, field.name)
                     self.__form.add_element(widget)
 

@@ -107,6 +107,17 @@ class PGConnector(DBConnector):
                 kind_settings_field = "p.setting AS kind_settings,"
                 table_alias = "alias.setting AS table_alias,"
                 ili_name = "c.iliname AS ili_name,"
+                extent = """(
+				    SELECT string_agg(setting, ';' ORDER BY CASE
+					WHEN cprop."tag"='ch.ehi.ili2db.c1Min' THEN 1
+					WHEN cprop."tag"='ch.ehi.ili2db.c2Min' THEN 2
+					WHEN cprop."tag"='ch.ehi.ili2db.c1Max' THEN 3
+					WHEN cprop."tag"='ch.ehi.ili2db.c2Max' THEN 4
+					END)
+				    FROM ciaf."t_ili2db_column_prop" AS cprop
+				    WHERE tbls.tablename = cprop.tablename
+				    AND cprop."tag" IN ('ch.ehi.ili2db.c1Min', 'ch.ehi.ili2db.c2Min', 'ch.ehi.ili2db.c1Max', 'ch.ehi.ili2db.c2Max')
+                          ) AS extent,"""
                 model_name = "left(c.iliname, strpos(c.iliname, '.')-1) AS model,"
                 domain_left_join = """LEFT JOIN {}.t_ili2db_table_prop p
                               ON p.tablename = tbls.tablename
@@ -131,6 +142,7 @@ class PGConnector(DBConnector):
                           {table_alias}
                           {model_name}
                           {ili_name}
+                          {extent}
                           g.type AS simple_type,
                           format_type(ga.atttypid, ga.atttypmod) as formatted_type
                         FROM pg_catalog.pg_tables tbls
@@ -150,7 +162,7 @@ class PGConnector(DBConnector):
                           AND ga.attname = g.f_geometry_column
                         WHERE i.indisprimary {schema_where}
             """.format(kind_settings_field=kind_settings_field, table_alias=table_alias,
-                       model_name=model_name, ili_name=ili_name, domain_left_join=domain_left_join,
+                       model_name=model_name, ili_name=ili_name, extent=extent, domain_left_join=domain_left_join,
                        alias_left_join=alias_left_join, model_where=model_where,
                        schema_where=schema_where))
 
@@ -209,18 +221,15 @@ class PGConnector(DBConnector):
 
             unit_field = ''
             text_kind_field = ''
-            full_name_field = ''
             column_alias = ''
             unit_join = ''
             text_kind_join = ''
             disp_name_join = ''
-            full_name_join = ''
 
             if self.metadata_exists():
                 unit_field = "unit.setting AS unit,"
                 text_kind_field = "txttype.setting AS texttype,"
                 column_alias = "alias.setting AS column_alias,"
-                full_name_field = "full_name.iliname as fully_qualified_name,"
                 unit_join = """LEFT JOIN {}.t_ili2db_column_prop unit
                                     ON c.table_name=unit.tablename AND
                                     c.column_name=unit.columnname AND
@@ -233,10 +242,6 @@ class PGConnector(DBConnector):
                                         ON c.table_name=alias.tablename AND
                                         c.column_name=alias.columnname AND
                                         alias.tag = 'ch.ehi.ili2db.dispName'""".format(self.schema)
-                full_name_join = """LEFT JOIN {}.t_ili2db_attrname full_name
-                                        ON full_name.owner='{}' AND
-                                        c.column_name=full_name.sqlname
-                                        """.format(self.schema, table_name)
 
             fields_cur.execute("""
                 SELECT
@@ -246,7 +251,6 @@ class PGConnector(DBConnector):
                   {unit_field}
                   {text_kind_field}
                   {column_alias}
-                  {full_name_field}
                   pgd.description AS comment
                 FROM pg_catalog.pg_statio_all_tables st
                 LEFT JOIN information_schema.columns c ON c.table_schema=st.schemaname AND c.table_name=st.relname
@@ -254,14 +258,11 @@ class PGConnector(DBConnector):
                 {unit_join}
                 {text_kind_join}
                 {disp_name_join}
-                {full_name_join}
                 WHERE st.relid = '{schema}."{table}"'::regclass;
                 """.format(schema=self.schema, table=table_name, unit_field=unit_field,
                             text_kind_field=text_kind_field, column_alias=column_alias,
-                            full_name_field=full_name_field,
                             unit_join=unit_join, text_kind_join=text_kind_join,
-                            disp_name_join=disp_name_join,
-                            full_name_join=full_name_join))
+                            disp_name_join=disp_name_join))
 
             return fields_cur
 
