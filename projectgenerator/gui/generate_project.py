@@ -298,8 +298,6 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
 
             self.print_info(self.tr('Generating QGIS project…'))
             project.create(None, qgis_project)
-#HERE CAN YOU Start!
-# Se crea el extext del proyecto a partir del primer layer que contenga este dato
             for layer in project.layers:
                 if layer.extent is not None:
                     extent_values = layer.extent.split(';')
@@ -308,6 +306,7 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
                     print(rectangle)
                     self.canvas = self.iface.mapCanvas()
                     self.canvas.setExtent(rectangle)
+                    self.canvas.refresh()
                     break
 
             self.buttonBox.clear()
