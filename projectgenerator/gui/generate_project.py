@@ -31,6 +31,7 @@ from projectgenerator.libili2db.globals import CRS_PATTERNS
 from projectgenerator.libili2db.ili2dbconfig import SchemaImportConfiguration
 from projectgenerator.libili2db.ilicache import IliCache
 from projectgenerator.libili2db.iliimporter import JavaNotFoundError
+from qgis.gui import QgsRubberBand
 from projectgenerator.utils.qt_utils import (
     make_file_selector,
     make_save_file_selector,
@@ -62,11 +63,15 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     Qgis,
     QgsRectangle,
-    QgsPointXY
+    QgsPointXY,
+    QgsWkbTypes,
+    QgsPolygon,
+    QgsGeometry
 )
 from qgis.gui import (
     QgsMessageBar,
-    QgsGui
+    QgsGui,
+    QgsRubberBand
 )
 from ..utils import get_ui_class
 from ..libili2db import iliimporter
@@ -307,6 +312,23 @@ class GenerateProjectDialog(QDialog, DIALOG_UI):
                     self.canvas = self.iface.mapCanvas()
                     self.canvas.setExtent(rectangle)
                     self.canvas.refresh()
+
+                    #Remove QgsRubberBand
+                    # Get RubberBands
+                    rbs = [ i for i in self.canvas.scene().items()
+                    if issubclass(type(i), QgsRubberBand) ]
+
+                    # Remove RubberBands
+                    for rb in rbs:
+                        if rb in self.canvas.scene().items():
+                            self.canvas.scene().removeItem(rb)
+                    #Here last
+                    rubb = QgsRubberBand (self.canvas, QgsWkbTypes.LineGeometry)
+                    p = QgsPolygon()
+                    p.fromWkt(rectangle.asWktPolygon())
+                    rubb.addGeometry(QgsGeometry(p))
+                    rubb.setColor(QColor('#ff7f24'))
+                    rubb.setWidth(10)
                     break
 
             self.buttonBox.clear()
